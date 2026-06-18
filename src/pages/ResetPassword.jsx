@@ -6,6 +6,7 @@ import { FiZap } from "react-icons/fi";
 export default function ResetPassword() {
   const navigate = useNavigate();
   const location = useLocation();
+  const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
   const params = new URLSearchParams(location.search);
   const token = params.get('token') || '';
 
@@ -27,7 +28,7 @@ export default function ResetPassword() {
     if (password !== confirm) return setError('Passwords do not match.');
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/auth/reset-password/${encodeURIComponent(token)}`, {
+      const res = await fetch(`${API_BASE}/api/auth/reset-password/${encodeURIComponent(token)}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password, oldPassword })
       });
       const body = await safeParseResponse(res);

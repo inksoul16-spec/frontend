@@ -5,6 +5,7 @@ import { useAuth } from "../App";
 import { FiZap, FiShoppingBag, FiTruck, FiShield, FiEye, FiEyeOff } from "react-icons/fi";
 
 export default function Signup() {
+  const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
   const { login } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
@@ -35,7 +36,7 @@ export default function Signup() {
     }
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/auth/register", {
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: form.name, email: form.email, password: form.password, supplierType }),

@@ -8,6 +8,7 @@ import {
 import { useRef, useEffect } from "react";
 
 import { loadCart } from '../lib/cart.js';
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 export function Navbar({ cart = [], onCartOpen, requireAuth }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ export function Navbar({ cart = [], onCartOpen, requireAuth }) {
 
   useEffect(() => {
     let mounted = true;
-    fetch((import.meta.env.VITE_API_BASE || 'http://localhost:5000') + '/api/categories')
+    fetch(`${API_BASE}/api/categories`)
       .then(r => r.json())
       .then(data => {
         if (!mounted) return;
@@ -282,7 +283,7 @@ export function Footer() {
 
   useEffect(() => {
     let mounted = true;
-    fetch((import.meta.env.VITE_API_BASE || 'http://localhost:5000') + '/api/categories')
+    fetch(`${API_BASE}/api/categories`)
       .then(r => r.json())
       .then(data => {
         if (!mounted) return;

@@ -4,6 +4,7 @@ import { useAuth } from "../App";
 import { FiZap, FiShoppingBag, FiTruck, FiShield, FiEye, FiEyeOff } from "react-icons/fi";
 
 export default function Login() {
+  const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
   const { login } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
@@ -25,7 +26,7 @@ export default function Login() {
     setLoading(true);
     try {
       const payload = { email: form.email.trim(), password: form.password };
-      const res = await fetch("http://localhost:5000/api/auth/login", {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

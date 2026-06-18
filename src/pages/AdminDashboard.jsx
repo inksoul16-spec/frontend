@@ -402,7 +402,7 @@ function PageOverview({ setPage, orders = [], products = [] }) {
     (async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch((import.meta.env.VITE_API_BASE || 'http://localhost:5000') + '/api/orders/summary', { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{}) } });
+        const res = await fetch(`${API_BASE}/api/orders/summary`, { headers: { ...(token?{ Authorization:`Bearer ${token}` }:{}) } });
         const data = await res.json().catch(() => ({}));
         if (res.ok && mounted) setOfficial(data);
       } catch (e) { /* ignore */ }
@@ -782,7 +782,7 @@ function PageOrders({ orders = [] }) {
                 const token = localStorage.getItem('token');
                 if (!token) return showToast('Not authenticated', 'error');
                 const id = selected._id || selected.id;
-                const res = await fetch((import.meta.env.VITE_API_BASE || 'http://localhost:5000') + `/api/orders/${id}/status`, {
+                const res = await fetch(`${API_BASE}/api/orders/${id}/status`, {
                   method: 'PATCH', headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ status: updateStatus })
                 });
                 const body = await res.json().catch(() => ({}));
@@ -1564,7 +1564,7 @@ function PageStaff() {
   const fetchStaff = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch((import.meta.env.VITE_API_BASE || 'http://localhost:5000') + '/api/auth/users', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API_BASE}/api/auth/users`, { headers: { Authorization: `Bearer ${token}` } });
       const body = await res.json();
       if (!res.ok) throw new Error(body.message || 'Failed to fetch users');
       setStaffList(body.users || []);
@@ -1585,7 +1585,7 @@ function PageStaff() {
         try {
           const token = localStorage.getItem('token');
           for (const id of ids) {
-            await fetch((import.meta.env.VITE_API_BASE || 'http://localhost:5000') + `/api/auth/users/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+            await fetch(`${API_BASE}/api/auth/users/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
           }
           showToast('Deleted selected users', 'success');
           setSelected({});
@@ -1618,7 +1618,7 @@ function PageStaff() {
     const password = staffForm.password || `Temp!${Date.now().toString().slice(-6)}`;
 
     try {
-      const res = await fetch((import.meta.env.VITE_API_BASE || 'http://localhost:5000') + '/api/auth/register', {
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: staffForm.name || 'Unnamed', email: staffForm.email, password, role }),
@@ -1730,7 +1730,7 @@ function PageStaff() {
               if (!token) return showToast('Not authenticated', 'error');
               const id = editUser._id || editUser.id;
               const payload = { name: editUser.name, email: editUser.email, role: editUser.role };
-              const res = await fetch((import.meta.env.VITE_API_BASE || 'http://localhost:5000') + `/api/auth/users/${id}`, {
+              const res = await fetch(`${API_BASE}/api/auth/users/${id}`, {
                 method: 'PATCH', headers: { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(payload)
               });
               const body = await res.json().catch(() => ({}));

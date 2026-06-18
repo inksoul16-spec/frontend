@@ -4,6 +4,7 @@ import { safeParseResponse } from "../lib/safeResponse";
 import { FiZap } from "react-icons/fi";
 
 export default function ForgotPassword() {
+  const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [resetUrl, setResetUrl] = useState("");
@@ -15,7 +16,7 @@ export default function ForgotPassword() {
     if (!email.trim()) { setError("Please enter your email."); return; }
     setLoading(true); setError(""); setMessage("");
     try {
-      const res = await fetch("http://localhost:5000/api/auth/forgot-password", {
+      const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
