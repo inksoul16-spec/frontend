@@ -171,23 +171,46 @@ export default function CashierDashboard() {
     }
   };
 
-  const markCollected = async (orderId) => {
+  const handleManualCollect = async (codeOrId) => {
+    const value = (codeOrId || "").trim();
+    if (!value) {
+      showToast('Enter an order ID or QR code', 'error');
+      return;
+    }
+    // Heuristic: if value looks like a short id (<=36) treat as orderId, otherwise treat as QR token and call scan endpoint
     try {
-      const res = await fetch(`${API_BASE}/api/orders/${orderId}/status`, {
-        method: "PATCH",
-        headers: authHeaders(token, true),
-        body: JSON.stringify({ status: "collected" }),
-      });
-      const body = await safeParseResponse(res);
-      if (!res.ok) {
-        showToast(body.message || "Failed to update order.", "error");
-        return;
+      if (value.length <= 48 && !value.includes(' ')) {
+        // treat as order id
+        const res = await fetch(`${API_BASE}/api/orders/${value}/status`, {
+          method: "PATCH",
+          headers: authHeaders(token, true),
+          body: JSON.stringify({ status: "collected" }),
+        });
+        const body = await safeParseResponse(res);
+        if (!res.ok) {
+          showToast(body.message || "Failed to update order.", "error");
+          return;
+        }
+        showToast("Order marked as collected.", "success");
+      } else {
+        // treat as QR payload/token
+        const res = await fetch(`${API_BASE}/api/orders/scan`, {
+          method: "POST",
+          headers: authHeaders(token, true),
+          body: JSON.stringify({ qrCode: value }),
+        });
+        const body = await safeParseResponse(res);
+        if (!res.ok) {
+          showToast(body.message || "Scan failed.", "error");
+          return;
+        }
+        showToast(body.message || 'Order collected.', 'success');
       }
-      showToast("Order marked as collected.", "success");
+      setQrInput('');
       fetchPickupOrders();
       if (tab === "history") fetchHistory(historyPage);
-    } catch {
-      showToast("Network error updating order.", "error");
+    } catch (e) {
+      showToast(e.message || "Network error during collect.", "error");
     }
   };
 
@@ -331,25 +354,26 @@ export default function CashierDashboard() {
 
           {tab === "pickup" && (
             <PickupTab
-              orders={pickupOrders}
-              loading={pickupLoading}
-              onRefresh={fetchPickupOrders}
-              onMarkCollected={markCollected}
-              onDownload={downloadInvoice}
-              downloadingId={downloadingId}
-            />
+                orders={pickupOrders}
+                loading={pickupLoading}
+                onRefresh={fetchPickupOrders}
+                onMarkCollected={handleManualCollect}
+                onDownload={downloadInvoice}
+                downloadingId={downloadingId}
+              />
           )}
 
           {tab === "scan" && (
             <ScanTab
-              videoRef={videoRef}
-              scanning={scanning}
-              onToggleCamera={toggleCamera}
-              qrInput={qrInput}
-              setQrInput={setQrInput}
-              onSubmit={() => submitScan(qrInput)}
-              scanResult={scanResult}
-            />
+                videoRef={videoRef}
+                scanning={scanning}
+                onToggleCamera={toggleCamera}
+                qrInput={qrInput}
+                setQrInput={setQrInput}
+                onSubmit={() => submitScan(qrInput)}
+                onManualCollect={(code) => handleManualCollect(code)}
+                scanResult={scanResult}
+              />
           )}
 
           {tab === "history" && (
@@ -466,7 +490,7 @@ function PickupTab({ orders, loading, onRefresh, onMarkCollected, onDownload, do
                 <OrderItemsLine items={o.items} />
               </div>
               <div className="text-right shrink-0">
-                <p className="font-bold text-gray-900 mb-2">${o.totalAmount?.toFixed(2)}</p>
+                <p className="font-bold text-gray-900 mb-2">RWF {Number(o.totalAmount || 0).toLocaleString()}</p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => onDownload(o._id)}
@@ -491,7 +515,7 @@ function PickupTab({ orders, loading, onRefresh, onMarkCollected, onDownload, do
   );
 }
 
-function ScanTab({ videoRef, scanning, onToggleCamera, qrInput, setQrInput, onSubmit, scanResult }) {
+function ScanTab({ videoRef, scanning, onToggleCamera, qrInput, setQrInput, onSubmit, onManualCollect, scanResult }) {
   return (
     <div className="flex flex-col gap-5 max-w-lg">
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
@@ -529,6 +553,21 @@ function ScanTab({ videoRef, scanning, onToggleCamera, qrInput, setQrInput, onSu
             className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
           >
             Verify
+          </button>
+        </div>
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={() => onManualCollect(qrInput)}
+            disabled={!qrInput}
+            className="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50"
+          >
+            Mark as collected
+          </button>
+          <button
+            onClick={() => setQrInput('')}
+            className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors"
+          >
+            Clear
           </button>
         </div>
       </div>
@@ -611,7 +650,7 @@ function HistoryTab({ results, loading, page, totalPages, total, query, setQuery
                 )}
               </div>
               <div className="text-right shrink-0">
-                <p className="font-bold text-gray-900 mb-2">${o.totalAmount?.toFixed(2)}</p>
+                <p className="font-bold text-gray-900 mb-2">RWF {Number(o.totalAmount || 0).toLocaleString()}</p>
                 <button
                   onClick={() => onDownload(o._id)}
                   disabled={downloadingId === o._id}
@@ -676,7 +715,7 @@ function CustomersTab({ query, setQuery, results }) {
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-xs text-gray-500">#{o._id.slice(-6)}</span>
                     <StatusBadge status={o.status} />
-                    <span className="text-xs text-gray-500">${o.totalAmount?.toFixed(2)}</span>
+                    <span className="text-xs text-gray-500">RWF {Number(o.totalAmount || 0).toLocaleString()}</span>
                   </div>
                 </div>
               ))}

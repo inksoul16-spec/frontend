@@ -114,7 +114,7 @@ export default function Product() {
             <button onClick={addToCart} className="w-full border border-gray-200 py-3 rounded-xl flex items-center justify-center gap-2"><FiShoppingCart/> Add to Cart</button>
 
             <div className="mt-6 text-sm" style={{ color:'var(--muted)' }}>
-              <p><strong>Delivery</strong><br/>Available across Kigali</p>
+              <p><strong>Pickup</strong><br/>Available at the shop or stall in Kigali</p>
               <p className="mt-3"><strong>Return Policy</strong><br/>Contact seller for returns</p>
               <p className="mt-3"><strong>Payment</strong><br/>MoMo &amp; card accepted</p>
             </div>

@@ -241,7 +241,7 @@ export default function Pay() {
             </label>
             <label className="flex items-center gap-3">
               <input type="radio" name="method" value="cod" checked={method==='cod'} onChange={() => setMethod('cod')} />
-              Cash on Delivery
+              Pay at Pickup
             </label>
           </div>
         </div>

@@ -12,13 +12,25 @@ let jsQRPromise = null;
 async function loadJsQR() {
   if (window.jsQR) return window.jsQR;
   if (!jsQRPromise) {
-    jsQRPromise = new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js";
-      script.onload = () => resolve(window.jsQR);
-      script.onerror = () => reject(new Error("Failed to load QR scanning library."));
-      document.head.appendChild(script);
-    });
+    // Prefer the locally installed package (faster, works offline).
+    jsQRPromise = (async () => {
+      try {
+        const mod = await import('jsqr');
+        // support default export or named
+        const fn = (mod && (mod.default || mod.jsQR || mod)) || null;
+        if (fn) return fn;
+      } catch (e) {
+        // dynamic import failed — fall back to CDN
+      }
+
+      return await new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js";
+        script.onload = () => resolve(window.jsQR || (window.jsQR === undefined ? null : window.jsQR));
+        script.onerror = () => reject(new Error("Failed to load QR scanning library (cdn fallback failed)."));
+        document.head.appendChild(script);
+      });
+    })();
   }
   return jsQRPromise;
 }

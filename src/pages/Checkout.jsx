@@ -38,7 +38,7 @@ export default function Checkout() {
   };
 
   const placeOrder = async () => {
-    if(!selectedAddress) { showToast('Select or add a delivery address', 'error'); return; }
+    if(!selectedAddress) { showToast('Select or add a pickup location', 'error'); return; }
     if(cart.length===0) { showToast('Cart is empty', 'error'); return; }
     setLoading(true);
     try{
@@ -91,13 +91,13 @@ export default function Checkout() {
             <div className="mb-6">
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-3">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center ${step===1?'bg-amber-500 text-white':'bg-gray-200 text-gray-600'}`}>1</div>
-                  <div className="text-sm"><div className="font-semibold">Delivery</div><div className="text-xs text-gray-500">Choose address</div></div>
-                </div>
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center ${step===1?'bg-amber-500 text-white':'bg-gray-200 text-gray-600'}`}>1</div>
+                    <div className="text-sm"><div className="font-semibold">Pickup</div><div className="text-xs text-gray-500">Choose location</div></div>
+                  </div>
                 <div className="w-24 h-0.5 bg-gray-200"></div>
-                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3">
                   <div className={`w-9 h-9 rounded-full flex items-center justify-center ${step===2?'bg-amber-500 text-white':'bg-gray-200 text-gray-600'}`}>2</div>
-                  <div className="text-sm"><div className="font-semibold">Instructions</div><div className="text-xs text-gray-500">Delivery notes</div></div>
+                  <div className="text-sm"><div className="font-semibold">Instructions</div><div className="text-xs text-gray-500">Pickup notes</div></div>
                 </div>
                 <div className="w-24 h-0.5 bg-gray-200"></div>
                 <div className="flex items-center gap-3">
@@ -107,9 +107,9 @@ export default function Checkout() {
               </div>
             </div>
 
-            {/* Delivery / Address selection */}
+            {/* Pickup / Location selection */}
             <div className="mb-6">
-              <div className="flex justify-between items-center mb-3"><h3 className="font-bold">Delivery Address</h3><button onClick={()=>setShowAddr(true)} className="text-sm bg-amber-100 px-3 py-1 rounded">+ Add New</button></div>
+              <div className="flex justify-between items-center mb-3"><h3 className="font-bold">Pickup Location</h3><button onClick={()=>setShowAddr(true)} className="text-sm bg-amber-100 px-3 py-1 rounded">+ Add New</button></div>
               <div className="space-y-3">
                 {addresses.length===0 && <div className="p-4 border rounded text-gray-500">No saved addresses yet.</div>}
                 {addresses.map(a=> (
@@ -127,8 +127,8 @@ export default function Checkout() {
 
             {step>=2 && (
               <div className="mb-6">
-                <h3 className="font-bold mb-2">Delivery Instructions</h3>
-                <textarea value={instructions} onChange={e=>setInstructions(e.target.value)} className="w-full p-3 border rounded" placeholder="Add any instructions for the rider (gate code, floor, etc.)" />
+                <h3 className="font-bold mb-2">Pickup Instructions</h3>
+                <textarea value={instructions} onChange={e=>setInstructions(e.target.value)} className="w-full p-3 border rounded" placeholder="Add any pickup instructions (who will collect, ID, stall number, etc.)" />
                 <div className="mt-4"><button onClick={()=>setStep(3)} className="px-4 py-2 bg-amber-500 text-white rounded">Continue →</button></div>
               </div>
             )}
@@ -139,7 +139,7 @@ export default function Checkout() {
                 <div className="space-y-3">
                   <label className={`flex items-center gap-3 p-3 border rounded ${method==='momo'? 'border-amber-400 ring-1 ring-amber-200':''}`}><input type="radio" name="pm" checked={method==='momo'} onChange={()=>setMethod('momo')} className="mr-2"/> <div><div className="font-medium">Mobile Money</div><div className="text-xs text-gray-500">MTN / Airtel</div></div></label>
                   <label className={`flex items-center gap-3 p-3 border rounded ${method==='card'? 'border-amber-400 ring-1 ring-amber-200':''}`}><input type="radio" name="pm" checked={method==='card'} onChange={()=>setMethod('card')} className="mr-2"/> <div><div className="font-medium">Card</div><div className="text-xs text-gray-500">Visa, Mastercard</div></div></label>
-                  <label className={`flex items-center gap-3 p-3 border rounded ${method==='cod'? 'border-amber-400 ring-1 ring-amber-200':''}`}><input type="radio" name="pm" checked={method==='cod'} onChange={()=>setMethod('cod')} className="mr-2"/> <div><div className="font-medium">Cash on Delivery</div><div className="text-xs text-gray-500">Pay at pickup</div></div></label>
+                  <label className={`flex items-center gap-3 p-3 border rounded ${method==='cod'? 'border-amber-400 ring-1 ring-amber-200':''}`}><input type="radio" name="pm" checked={method==='cod'} onChange={()=>setMethod('cod')} className="mr-2"/> <div><div className="font-medium">Pay at Pickup</div><div className="text-xs text-gray-500">Pay when you collect</div></div></label>
                 </div>
                 <div className="mt-6">
                   <button onClick={placeOrder} disabled={loading} className="px-6 py-3 bg-amber-500 text-white rounded-lg shadow">{loading? 'Placing…':'Place Order'}</button>
@@ -181,7 +181,7 @@ export default function Checkout() {
             </div>
             <div className="pt-4 mt-4 vc-border-top">
               <div className="flex justify-between text-sm mb-2"><span className="text-gray-400">Subtotal</span><span>RWF {subtotal.toLocaleString()}</span></div>
-              <div className="flex justify-between text-sm mb-2"><span className="text-gray-400">Delivery Fee</span><span>RWF 0</span></div>
+              <div className="flex justify-between text-sm mb-2"><span className="text-gray-400">Pickup Fee</span><span>RWF 0</span></div>
               <div className="flex justify-between text-lg font-bold mt-3"><span>Total</span><span className="text-amber-600">RWF {subtotal.toLocaleString()}</span></div>
             </div>
           </div>
@@ -193,8 +193,8 @@ export default function Checkout() {
       {showAddr && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4"><h3 className="font-bold">New Delivery Address</h3><button onClick={()=>setShowAddr(false)}>×</button></div>
-            <input value={newAddr} onChange={e=>setNewAddr(e.target.value)} className="w-full p-3 border rounded mb-3" placeholder="Street address or location" />
+            <div className="flex justify-between items-center mb-4"><h3 className="font-bold">New Pickup Location</h3><button onClick={()=>setShowAddr(false)}>×</button></div>
+              <input value={newAddr} onChange={e=>setNewAddr(e.target.value)} className="w-full p-3 border rounded mb-3" placeholder="Stall, shop name or location" />
             <div className="flex justify-end gap-3"><button onClick={()=>setShowAddr(false)} className="px-4 py-2 border rounded">Cancel</button><button onClick={addAddress} className="px-4 py-2 bg-amber-500 text-white rounded">Save Address</button></div>
           </div>
         </div>

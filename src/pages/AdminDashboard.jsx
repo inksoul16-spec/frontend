@@ -1968,7 +1968,7 @@ function PageSettings() {
         { label:"Email",           type:"email",    value:"admin@quickcollect.rw"  },
         { label:"Phone",           type:"text",     value:"+250 788 000 000"       },
         { label:"Address",         type:"text",     value:"KG 11 Ave, Kigali"      },
-        { label:"Currency",        type:"select",   options:["RWF","USD","EUR"],  value:"RWF" },
+        { label:"Currency",        type:"select",   options:["RWF"],  value:"RWF" },
       ],
     },
     {

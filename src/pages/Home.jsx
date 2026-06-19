@@ -121,7 +121,7 @@ export default function Home() {
   const STATS = [
     { value: "21,343+", label: "Products" },
     { value: "50+", label: "Stores" },
-    { value: "Same Day", label: "Delivery" },
+    { value: "Same Day", label: "Pickup" },
   ];
 
   return (
@@ -134,14 +134,14 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 py-12 lg:py-16 flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
           <div className="flex-1 max-w-xl">
             <div className="inline-flex items-center gap-2" style={{ border: '1px solid var(--muted-border)', color: 'var(--body-text)' }}>
-              <FiMapPin size={13} /> Delivering across Kigali, Rwanda
+              <FiMapPin size={13} /> Pickup available across Kigali, Rwanda
             </div>
             <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight mb-4" style={{ color: 'var(--body-text)' }}>
               Everything you need,{" "}
-              <span className="text-amber-500">delivered today.</span>
+              <span className="text-amber-500">ready for pickup today.</span>
             </h1>
             <p className="text-sm leading-relaxed mb-8 max-w-md" style={{ color: 'var(--muted)' }}>
-              Shop from trusted suppliers of electrical products and building materials — everything you need for projects and installations, delivered same day where available.
+              Shop from trusted suppliers of electrical products and building materials — everything you need, ready for pickup same day where available.
             </p>
             <form onSubmit={handleHeroSearch} className="flex mb-10 max-w-md shadow-sm">
               <div className="flex flex-1 items-center border rounded-l-xl px-4 gap-2" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'rgba(0,0,0,0.06)' }}>
