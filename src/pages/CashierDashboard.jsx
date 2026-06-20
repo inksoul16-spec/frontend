@@ -154,6 +154,32 @@ export default function CashierDashboard() {
     }
   };
 
+  // Preview endpoint: fetch order details without marking collected
+  const previewScan = async (code) => {
+    const value = (code || "").trim();
+    if (!value) {
+      setScanResult({ type: "error", text: "Enter or scan a QR code first." });
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/scan/preview`, {
+        method: "POST",
+        headers: authHeaders(token, true),
+        body: JSON.stringify({ qrCode: value }),
+      });
+      const body = await safeParseResponse(res);
+      if (!res.ok) {
+        setScanResult({ type: "error", text: body.message || "Preview failed." });
+        showToast(body.message || "Preview failed.", "error");
+        return;
+      }
+      setScanResult({ type: "preview", order: body.order });
+    } catch (e) {
+      setScanResult({ type: "error", text: "Network error during preview." });
+      showToast("Network error during preview.", "error");
+    }
+  };
+
   const toggleCamera = async () => {
     if (scanning) {
       stopScanner();
@@ -372,6 +398,7 @@ export default function CashierDashboard() {
                 setQrInput={setQrInput}
                 onSubmit={() => submitScan(qrInput)}
                 onManualCollect={(code) => handleManualCollect(code)}
+                onPreview={(code) => previewScan(code)}
                 scanResult={scanResult}
               />
           )}
@@ -515,7 +542,7 @@ function PickupTab({ orders, loading, onRefresh, onMarkCollected, onDownload, do
   );
 }
 
-function ScanTab({ videoRef, scanning, onToggleCamera, qrInput, setQrInput, onSubmit, onManualCollect, scanResult }) {
+function ScanTab({ videoRef, scanning, onToggleCamera, qrInput, setQrInput, onSubmit, onManualCollect, onPreview, scanResult }) {
   return (
     <div className="flex flex-col gap-5 max-w-lg">
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
@@ -557,12 +584,21 @@ function ScanTab({ videoRef, scanning, onToggleCamera, qrInput, setQrInput, onSu
         </div>
         <div className="mt-3 flex gap-2">
           <button
+            onClick={() => onPreview(qrInput)}
+            disabled={!qrInput}
+            className="bg-indigo-500 hover:bg-indigo-400 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50"
+          >
+            Preview
+          </button>
+
+          <button
             onClick={() => onManualCollect(qrInput)}
             disabled={!qrInput}
             className="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50"
           >
             Mark as collected
           </button>
+
           <button
             onClick={() => setQrInput('')}
             className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors"
@@ -572,7 +608,36 @@ function ScanTab({ videoRef, scanning, onToggleCamera, qrInput, setQrInput, onSu
         </div>
       </div>
 
-      {scanResult && (
+      {scanResult && scanResult.type === "preview" && scanResult.order && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 text-sm text-gray-800">
+          <p className="font-medium">Order #{String(scanResult.order._id).slice(-6)}</p>
+          <p className="text-xs text-gray-600">{scanResult.order.user?.name} {scanResult.order.user?.email ? `<${scanResult.order.user.email}>` : ''}</p>
+          <div className="mt-2 text-xs text-gray-600">
+            <ul className="list-disc pl-5">
+              {(scanResult.order.items || []).map((it, idx) => (
+                <li key={idx}>{it.name} ×{it.qty} — RWF {Number(it.price || 0).toLocaleString()}</li>
+              ))}
+            </ul>
+            <p className="mt-2 font-semibold">Total: RWF {Number(scanResult.order.totalAmount || 0).toLocaleString()}</p>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={() => submitScan(scanResult.order.qrCode || qrInput)}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-sm font-semibold"
+            >
+              Confirm & collect
+            </button>
+            <button
+              onClick={() => setScanResult(null)}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1.5 rounded-lg text-sm"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {scanResult && scanResult.type && scanResult.type !== "preview" && (
         <div
           className={`text-sm px-4 py-3 rounded-xl border ${
             scanResult.type === "error"
