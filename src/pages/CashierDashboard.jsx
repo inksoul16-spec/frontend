@@ -51,6 +51,9 @@ export default function CashierDashboard() {
   const [scanResult, setScanResult] = useState(null); // { type, text }
   const videoRef = useRef(null);
 
+  const [previewOrder, setPreviewOrder] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
   const [historyResults, setHistoryResults] = useState([]);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyTotalPages, setHistoryTotalPages] = useState(1);
@@ -125,10 +128,57 @@ export default function CashierDashboard() {
 
   // ---- actions ----
 
-  const submitScan = async (code) => {
+  const previewScan = async (code) => {
     const value = (code || "").trim();
     if (!value) {
       setScanResult({ type: "error", text: "Enter or scan a QR code first." });
+      setPreviewOrder(null);
+      return;
+    }
+    setPreviewLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/orders/scan/preview`, {
+        method: "POST",
+        headers: authHeaders(token, true),
+        body: JSON.stringify({ qrCode: value }),
+      });
+      const body = await safeParseResponse(res);
+      if (!res.ok) {
+        setPreviewOrder(null);
+        setScanResult({ type: "error", text: body.message || "Preview failed." });
+        showToast(body.message || "Preview failed.", "error");
+        return;
+      }
+
+      // prefer server-provided order object; otherwise parse qrPayload if present
+      let data = body.order || null;
+      if (!data && body.qrPayload) {
+        try {
+          data = typeof body.qrPayload === "string" ? JSON.parse(body.qrPayload) : body.qrPayload;
+        } catch (e) {
+          data = body.qrPayload;
+        }
+      }
+      // If the server returned payload directly (e.g., testing), fall back to body
+      if (!data) data = body;
+
+      // Normalize a couple of common fields
+      if (data && !data._id) data._id = data.orderId || data.id || data._id;
+      setPreviewOrder(data);
+      setScanResult({ type: "preview", text: "Preview loaded." });
+    } catch (e) {
+      setPreviewOrder(null);
+      setScanResult({ type: "error", text: "Network error during preview." });
+      showToast("Network error during preview.", "error");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const confirmCollect = async (codeOrId) => {
+    const value = (codeOrId || "").trim();
+    if (!value) {
+      showToast("No code to collect.", "error");
       return;
     }
     try {
@@ -145,39 +195,19 @@ export default function CashierDashboard() {
       }
       setScanResult({ type: "success", text: body.message || "Order collected." });
       showToast(body.message || "Order collected.", "success");
+      setPreviewOrder(null);
       setQrInput("");
       fetchPickupOrders();
       if (tab === "history") fetchHistory(historyPage);
-    } catch {
+    } catch (e) {
       setScanResult({ type: "error", text: "Network error during scan." });
       showToast("Network error during scan.", "error");
     }
   };
 
-  // Preview endpoint: fetch order details without marking collected
-  const previewScan = async (code) => {
-    const value = (code || "").trim();
-    if (!value) {
-      setScanResult({ type: "error", text: "Enter or scan a QR code first." });
-      return;
-    }
-    try {
-      const res = await fetch(`${API_BASE}/api/orders/scan/preview`, {
-        method: "POST",
-        headers: authHeaders(token, true),
-        body: JSON.stringify({ qrCode: value }),
-      });
-      const body = await safeParseResponse(res);
-      if (!res.ok) {
-        setScanResult({ type: "error", text: body.message || "Preview failed." });
-        showToast(body.message || "Preview failed.", "error");
-        return;
-      }
-      setScanResult({ type: "preview", order: body.order });
-    } catch (e) {
-      setScanResult({ type: "error", text: "Network error during preview." });
-      showToast("Network error during preview.", "error");
-    }
+  const cancelPreview = () => {
+    setPreviewOrder(null);
+    setScanResult(null);
   };
 
   const toggleCamera = async () => {
@@ -189,7 +219,7 @@ export default function CashierDashboard() {
     try {
       await startScanner(videoRef.current, (data) => {
         setQrInput(data);
-        submitScan(data);
+        previewScan(data);
       });
       setScanning(true);
     } catch (err) {
@@ -396,10 +426,14 @@ export default function CashierDashboard() {
                 onToggleCamera={toggleCamera}
                 qrInput={qrInput}
                 setQrInput={setQrInput}
-                onSubmit={() => submitScan(qrInput)}
+                onSubmit={() => previewScan(qrInput)}
                 onManualCollect={(code) => handleManualCollect(code)}
-                onPreview={(code) => previewScan(code)}
                 scanResult={scanResult}
+                previewOrder={previewOrder}
+                previewLoading={previewLoading}
+                onPreview={previewScan}
+                onConfirmCollect={confirmCollect}
+                onCancelPreview={cancelPreview}
               />
           )}
 
@@ -542,7 +576,30 @@ function PickupTab({ orders, loading, onRefresh, onMarkCollected, onDownload, do
   );
 }
 
-function ScanTab({ videoRef, scanning, onToggleCamera, qrInput, setQrInput, onSubmit, onManualCollect, onPreview, scanResult }) {
+function ScanTab({
+  videoRef,
+  scanning,
+  onToggleCamera,
+  qrInput,
+  setQrInput,
+  onSubmit,
+  onManualCollect,
+  scanResult,
+  previewOrder,
+  previewLoading,
+  onPreview,
+  onConfirmCollect,
+  onCancelPreview
+}) {
+  const formatMoney = (v) => `RWF ${Number(v || 0).toLocaleString()}`;
+  const formatDate = (s) => {
+    try {
+      const d = new Date(s);
+      if (isNaN(d)) return String(s || "");
+      return d.toLocaleString();
+    } catch { return String(s || ""); }
+  };
+
   return (
     <div className="flex flex-col gap-5 max-w-lg">
       <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
@@ -565,18 +622,19 @@ function ScanTab({ videoRef, scanning, onToggleCamera, qrInput, setQrInput, onSu
           </button>
         </div>
       </div>
+
       <div className="bg-white border border-gray-200 rounded-2xl p-5">
         <label className="text-sm text-gray-600 font-medium block mb-2">Or enter the code manually</label>
         <div className="flex gap-2">
           <input
             value={qrInput}
             onChange={(e) => setQrInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && onSubmit()}
+            onKeyDown={(e) => e.key === "Enter" && onPreview(qrInput)}
             placeholder="Paste QR token"
             className="flex-1 bg-white border border-gray-200 focus:border-indigo-500 focus:outline-none text-gray-900 placeholder-gray-400 rounded-xl px-4 py-2.5 text-sm font-mono"
           />
           <button
-            onClick={onSubmit}
+            onClick={() => onPreview(qrInput)}
             className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors"
           >
             Verify
@@ -584,21 +642,12 @@ function ScanTab({ videoRef, scanning, onToggleCamera, qrInput, setQrInput, onSu
         </div>
         <div className="mt-3 flex gap-2">
           <button
-            onClick={() => onPreview(qrInput)}
-            disabled={!qrInput}
-            className="bg-indigo-500 hover:bg-indigo-400 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50"
-          >
-            Preview
-          </button>
-
-          <button
             onClick={() => onManualCollect(qrInput)}
             disabled={!qrInput}
             className="bg-amber-600 hover:bg-amber-500 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50"
           >
             Mark as collected
           </button>
-
           <button
             onClick={() => setQrInput('')}
             className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors"
@@ -608,44 +657,110 @@ function ScanTab({ videoRef, scanning, onToggleCamera, qrInput, setQrInput, onSu
         </div>
       </div>
 
-      {scanResult && scanResult.type === "preview" && scanResult.order && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 text-sm text-gray-800">
-          <p className="font-medium">Order #{String(scanResult.order._id).slice(-6)}</p>
-          <p className="text-xs text-gray-600">{scanResult.order.user?.name} {scanResult.order.user?.email ? `<${scanResult.order.user.email}>` : ''}</p>
-          <div className="mt-2 text-xs text-gray-600">
-            <ul className="list-disc pl-5">
-              {(scanResult.order.items || []).map((it, idx) => (
-                <li key={idx}>{it.name} ×{it.qty} — RWF {Number(it.price || 0).toLocaleString()}</li>
-              ))}
-            </ul>
-            <p className="mt-2 font-semibold">Total: RWF {Number(scanResult.order.totalAmount || 0).toLocaleString()}</p>
-          </div>
-          <div className="mt-3 flex gap-2">
-            <button
-              onClick={() => submitScan(scanResult.order.qrCode || qrInput)}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-sm font-semibold"
-            >
-              Confirm & collect
-            </button>
-            <button
-              onClick={() => setScanResult(null)}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1.5 rounded-lg text-sm"
-            >
-              Close
-            </button>
-          </div>
+      {/* Result messages */}
+      {scanResult && scanResult.type === "error" && (
+        <div className="text-sm px-4 py-3 rounded-xl border bg-red-950 border-red-800 text-red-300">
+          {scanResult.text}
+        </div>
+      )}
+      {scanResult && scanResult.type === "success" && (
+        <div className="text-sm px-4 py-3 rounded-xl border bg-emerald-950 border-emerald-800 text-emerald-300">
+          {scanResult.text}
         </div>
       )}
 
-      {scanResult && scanResult.type && scanResult.type !== "preview" && (
-        <div
-          className={`text-sm px-4 py-3 rounded-xl border ${
-            scanResult.type === "error"
-              ? "bg-red-950 border-red-800 text-red-300"
-              : "bg-emerald-950 border-emerald-800 text-emerald-300"
-          }`}
-        >
-          {scanResult.text}
+      {/* Preview card */}
+      {scanResult && scanResult.type === "preview" && (
+        <div className="bg-white border border-gray-200 rounded-2xl p-4">
+          {previewLoading ? (
+            <div className="text-sm text-gray-600">Loading preview…</div>
+          ) : !previewOrder ? (
+            <div className="text-sm text-gray-600">No preview available.</div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-start gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-semibold text-gray-900">{(previewOrder.user && previewOrder.user.name) || 'Customer'}</p>
+                      {previewOrder.user && previewOrder.user.email && <p className="text-xs text-gray-500">{previewOrder.user.email}</p>}
+                    </div>
+                    <div className="text-right">
+                      <p className="font-mono text-xs text-gray-500">#{String(previewOrder._id || previewOrder.orderId || '').slice(-8)}</p>
+                      {previewOrder.paidAt && <p className="text-xs text-gray-500">{formatDate(previewOrder.paidAt)}</p>}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 bg-gray-50 border border-gray-100 rounded-lg p-3">
+                    <p className="text-xs text-gray-600 mb-2">Items</p>
+                    <div className="flex flex-col gap-2">
+                      {Array.isArray(previewOrder.items) && previewOrder.items.length === 0 && <div className="text-xs text-gray-500">No items found</div>}
+                      {Array.isArray(previewOrder.items) && previewOrder.items.map((it, i) => {
+                        const name = it.name || (it.product && it.product.name) || 'Item';
+                        const qty = Number(it.qty || it.quantity || 1);
+                        const price = Number(it.price || (it.product && it.product.price) || 0);
+                        const lineTotal = qty * price;
+                        const emoji = (it.product && it.product.emoji) || it.emoji || null;
+                        const imageUrl = it.image || (it.product && it.product.image) || null;
+
+                        return (
+                          <div key={i} className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-xl">
+                              {imageUrl ? (
+                                <img src={imageUrl} alt={name} className="w-12 h-12 object-cover rounded-md" />
+                              ) : emoji ? (
+                                <span className="text-2xl">{emoji}</span>
+                              ) : (
+                                <svg className="w-6 h-6 text-gray-300" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.5" />
+                                  <path d="M7 14l3-4 3 5 4-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{name}</p>
+                              <p className="text-xs text-gray-500">Qty: {qty} • {formatMoney(price)}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-semibold text-gray-900">{formatMoney(lineTotal)}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between">
+                    <div className="text-sm text-gray-600">
+                      <div>Payment: <span className="font-medium text-gray-900 capitalize">{(previewOrder.paymentMethod || '').toString()}</span></div>
+                      {previewOrder.paymentDetails && previewOrder.paymentDetails.phone && (
+                        <div className="text-xs text-gray-500">Phone: {previewOrder.paymentDetails.phone}</div>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-500">Total</p>
+                      <p className="font-bold text-lg">{formatMoney(previewOrder.totalAmount || previewOrder.subtotal || (Array.isArray(previewOrder.items) ? previewOrder.items.reduce((s, it) => s + (Number(it.qty || 1) * Number(it.price || 0)), 0) : 0))}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => onConfirmCollect(previewOrder.qrCode || previewOrder.orderId || previewOrder._id)}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors"
+                >
+                  Confirm & collect
+                </button>
+                <button
+                  onClick={onCancelPreview}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
